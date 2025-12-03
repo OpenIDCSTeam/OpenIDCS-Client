@@ -1,0 +1,98 @@
+{
+  "VMWare": {
+    "Descript": "VMWare Workstation",
+    "isEnable": true,
+    "isRemote": false,
+    "Platform": ["Windows"],
+    "CPU_Arch": ["x86_64"],
+    "Required": [
+      "server_addr", "server_user", "server_pass",
+      "filter_name", "images_path", "system_path",
+      "backup_path", "extern_path", "launch_path"
+    ],
+    "SystemOS": {
+      "Windows 10 x64": "windows9-64",
+
+    },
+    "Messages": ""
+  },
+  "HyperV": {
+    "Descript": "Win HyperV Platform",
+    "isEnable": false,
+    "Platform": ["Windows"],
+    "CPU_Arch": ["x86_64"],
+    "Required": [
+
+    ],
+    "Messages": "1、无法单独限制上下行带宽，取最低值"
+  },
+  "Promox": {
+    "Descript": "PVE Runtime Platform",
+    "isEnable": false,
+    "Platform": ["Linux", "Windows"],
+    "CPU_Arch": ["x86_64", "aarch64"],
+    "Required": [
+
+    ]
+  },
+  "Sphere": {
+    "Descript": "vSphere ESXi Runtime",
+    "isEnable": false,
+    "Platform": ["Linux", "Windows"],
+    "CPU_Arch": ["x86_64"],
+    "Required": [
+
+    ]
+  },
+  "XY-SIM": {
+    "Descript": "XYAndroid Simulator",
+    "isEnable": false,
+    "Platform": ["Windows"],
+    "CPU_Arch": ["x86_64"],
+    "Required": [
+
+    ],
+    "Optional": {
+      "graphics_render_mode": "图形渲染模式(1:DirectX, 0:OpenGL)",
+      "enable_su": "是否以超级用户权限启动",
+      "enable_audio": "是否启用音频",
+      "fps": "帧率"
+    }
+  },
+  "LinuxC": {
+    "Descript": "Linux Container App",
+    "isEnable": false,
+    "Platform": ["Linux"],
+    "CPU_Arch": ["x86_64", "aarch64"],
+    "Required": [
+
+    ]
+  },
+  "Docker": {
+    "Descript": "Docker Runtime Host",
+    "isEnable": false,
+    "Platform": ["Linux", "Windows", "MacOS"],
+    "CPU_Arch": ["x86_64", "aarch64"],
+    "Required": [
+
+    ]
+  },
+  "Podman": {
+    "Descript": "Podman Runtime, Host",
+    "isEnable": false,
+    "Platform": ["Linux", "Windows", "MacOS"],
+    "CPU_Arch": ["x86_64", "aarch64"],
+    "Required": [
+
+    ]
+  },
+  "Fusion": {
+    "Descript": "VMware Fusion Pro Mac",
+    "isEnable": false,
+    "Platform": ["MacOS"],
+    "CPU_Arch": ["x86_64", "aarch64"],
+    "Required": [
+
+    ]
+  }
+}
