@@ -129,7 +129,7 @@ if __name__ == "__main__":
         url = start_novnc_service(
             vnc_connect_str="127.0.0.1:5901",
             password="1234",  # 替换为你的VNC密码
-            web_port=6080
+            web_port=6090
         )
         print(f"\n请在浏览器中打开: {url}")
         print("服务运行中，按Ctrl+C停止...")
