@@ -3,7 +3,7 @@ from HostObject.VMPowers import VMPowers as VPower
 
 
 class HWStatus:
-    def __init__(self, **kwargs):
+    def __init__(self, config=None, /, **kwargs):
         # 基础数据 ============================
         self.ac_status: VPower = VPower.UNKNOWN
         self.cpu_model: str = ""  # 当前CPU名称
@@ -28,13 +28,21 @@ class HWStatus:
         self.network_d: int = 0  # 当前下行带宽
         self.cpu_heats: int = 0  # 当前核心温度
         self.cpu_power: int = 0  # 当前核心功耗
-        # 加载数据 ============================
+        # 加载传入的参数 ======================
+        if config is not None:
+            self.__read__(config)
         self.__load__(**kwargs)
 
     # 加载数据 ================================
     def __load__(self, **kwargs):
         for key, value in kwargs.items():
             if hasattr(self, key):
+                setattr(self, key, value)
+
+    # 读取数据 ================================
+    def __read__(self, data: dict):
+        for key, value in data.items():
+            if key in self.__dict__:
                 setattr(self, key, value)
 
     # 转换为字典 ==============================

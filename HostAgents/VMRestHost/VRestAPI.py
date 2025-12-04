@@ -19,10 +19,14 @@ class VRestAPI:
         self.ver_agent = ver_agent
 
     @staticmethod
-    # 创建vmx文本 =========================================================
-    def create_txt(in_config: dict, prefix: str = ""):
+    # 创建vmx文本 #########################################################
+    # :param config: 配置字典
+    # :param prefix: 前缀字符串
+    # :return: vmx文本
+    # #####################################################################
+    def create_txt(config: dict, prefix: str = "") -> str:
         result = ""
-        for key, value in in_config.items():
+        for key, value in config.items():
             if isinstance(value, dict):  # 如果值是字典，递归处理 =========
                 new_prefix = f"{prefix}{key}." if prefix else f"{key}."
                 result += VRestAPI.create_txt(value, new_prefix)
@@ -34,62 +38,53 @@ class VRestAPI:
                     result += f"{full_key} = {value}\n"
         return result
 
-    # VMRestAPI ===========================================================
-    def vmrest_api(self, url: str, data: dict = None, method: str = "GET") -> ZMessage:
-        """
-        发送VMRest API请求
-        :param url: API端点路径 (如 /vms, /vms/{id}/power)
-        :param data: 请求体数据 (用于POST/PUT请求)
-        :param method: HTTP方法 (GET, POST, PUT, DELETE)
-        :return: ZMessage对象
-        """
+    # VMRestAPI ###########################################################
+    # 发送VMRest API请求
+    # :param url: API端点路径 (如 /vms, /vms/{id}/power)
+    # :param data: 请求体数据 (用于POST/PUT请求)
+    # :param method: HTTP方法 (GET, POST, PUT, DELETE)
+    # :return: ZMessage对象
+    # #####################################################################
+    def vmrest_api(self, url: str, data=None, m: str = "GET") -> ZMessage:
         full_url = f"http://{self.host_addr}/api{url}"
         auth = HTTPBasicAuth(self.host_user, self.host_pass)
-        headers = {"Content-Type": "application/vnd.vmware.vmw.rest-v1+json"}
-        try:
-            
-            if method.upper() == "GET":
-                response = requests.get(full_url, auth=auth, headers=headers)
-            elif method.upper() == "POST":
-                response = requests.post(full_url, auth=auth, headers=headers, json=data)
-            elif method.upper() == "PUT":
-                response = requests.put(full_url, auth=auth, headers=headers, json=data)
-            elif method.upper() == "DELETE":
-                response = requests.delete(full_url, auth=auth, headers=headers)
-            else:
-                return ZMessage(
-                    success=False,
-                    actions="vmrest_api",
-                    message=f"不支持的HTTP方法: {method}"
-                )
+        # 设置请求头 ======================================================
+        head = {"Content-Type": "application/vnd.vmware.vmw.rest-v1+json"}
+        methods = {"GET": requests.get, "POST": requests.post,
+                   "PUT": requests.put, "DELETE": requests.delete}
+        try:  # 无效请求 ==================================================
+            if m.upper() not in methods:
+                return ZMessage(success=False, actions="vmrest_api",
+                                message=f"不支持的HTTP方法: {m}")
+            # 发送请求 ====================================================
+            response = methods[m.upper()](
+                full_url, auth=auth, headers=head, json=data)
             response.raise_for_status()
+            # 返回成功消息 ================================================
             return ZMessage(
-                success=True,
-                actions="vmrest_api",
-                message="请求成功",
-                results=response.json() if response.text else {}
-            )
+                success=True, actions="vmrest_api", message="请求成功",
+                results=response.json() if response.text else {})
+        # 处理请求异常 ====================================================
         except requests.exceptions.RequestException as e:
-            return ZMessage(
-                success=False,
-                actions="vmrest_api",
-                message=str(e),
-                execute=e
-            )
+            return ZMessage(success=False, actions="vmrest_api",
+                            message=str(e), execute=e)
 
-    # VMRest电源操作API（请求体为纯字符串） ================================
-    def vmrest_api_power(self, url: str, power_state: str) -> ZMessage:
-        """
-        发送VMRest电源操作请求（PUT请求体为纯字符串）
-        :param url: API端点路径
-        :param power_state: 电源状态字符串 (on, off, shutdown, suspend, pause, unpause)
-        :return: ZMessage对象
-        """
+    # VMRest电源操作API  ##################################################
+    # 发送VMRest电源操作请求（PUT请求体为纯字符串）
+    # :param url: API端点路径
+    # :param power: 电源状态字符串 (on, off, shutdown, suspend, pause, unpause)
+    # :return: ZMessage对象
+    # #####################################################################
+    def powers_api(self, url: str, power: str) -> ZMessage:
         full_url = f"http://{self.host_addr}/api{url}"
         auth = HTTPBasicAuth(self.host_user, self.host_pass)
-        headers = {"Content-Type": "application/vnd.vmware.vmw.rest-v1+json"}
+        head = {"Content-Type": "application/vnd.vmware.vmw.rest-v1+json"}
         try:
-            response = requests.put(full_url, auth=auth, headers=headers, data=power_state)
+            response = requests.put(
+                full_url,
+                auth=auth,
+                headers=head,
+                data=power)
             response.raise_for_status()
             return ZMessage(
                 success=True,
@@ -105,18 +100,19 @@ class VRestAPI:
                 execute=e
             )
 
-    # 获取所有虚拟机列表 ==================================================
-    def get_all_vm(self) -> ZMessage:
-        """获取所有已注册的虚拟机列表"""
+    # 获取所有虚拟机列表 ##################################################
+    # return: ZMessage对象
+    # #####################################################################
+    def return_vmx(self) -> ZMessage:
         return self.vmrest_api("/vms")
-    
-    # 选择虚拟机ID ========================================================
+
+    # 选择虚拟机ID ########################################################
+    # 根据虚拟机名称获取虚拟机ID
+    # :param vm_name: 虚拟机名称
+    # :return: 虚拟机ID，未找到返回空字符串
+    # #####################################################################
     def select_vid(self, vm_name: str) -> str:
-        """根据虚拟机名称获取虚拟机ID
-        :param vm_name: 虚拟机名称
-        :return: 虚拟机ID，未找到返回空字符串
-        """
-        result = self.get_all_vm()
+        result = self.return_vmx()
         if not result.success:
             return ""
         vms = result.results if isinstance(result.results, list) else []
@@ -135,11 +131,11 @@ class VRestAPI:
                 return vm_id
         return ""
 
-    # 获取虚拟机电源状态 ==================================================
-    def get_powers(self, vm_name: str) -> ZMessage:
-        """获取指定虚拟机的电源状态
-        :param vm_name: 虚拟机名称
-        """
+    # 获取虚拟机电源状态 ##################################################
+    # 获取指定虚拟机的电源状态
+    # :param vm_name: 虚拟机名称
+    # #####################################################################
+    def powers_get(self, vm_name: str) -> ZMessage:
         vm_id = self.select_vid(vm_name)
         if not vm_id:
             return ZMessage(
@@ -149,13 +145,13 @@ class VRestAPI:
             )
         return self.vmrest_api(f"/vms/{vm_id}/power")
 
-    # 设置虚拟机电源状态 ==================================================
+    # 设置虚拟机电源状态 ##################################################
     # :param vm_name: 虚拟机名称
     # :param power_state: VMPowers枚举类型
     # :param vm_password: 加密虚拟机的密码（可选）
     # :return: ZMessage对象
-    # =====================================================================
-    def set_powers(self, vm_name: str, power_state: VMPowers, vm_password: str = None) -> ZMessage:
+    # #####################################################################
+    def powers_set(self, vmx_name: str, power: VMPowers) -> ZMessage:
         # 电源状态映射
         power_map = {
             VMPowers.S_START: "on",
@@ -166,27 +162,27 @@ class VRestAPI:
             VMPowers.A_PAUSE: "pause",
             VMPowers.A_WAKED: "unpause",
         }
-        state_str = power_map.get(power_state, "on")
-        vm_id = self.select_vid(vm_name)
+        state_str = power_map.get(power, "on")
+        vm_id = self.select_vid(vmx_name)
         if not vm_id:
             return ZMessage(
                 success=False,
                 actions="set_powers",
-                message=f"未找到虚拟机: {vm_name}"
+                message=f"未找到虚拟机: {vmx_name}"
             )
         # 构建URL，如果有密码则添加查询参数
         url = f"/vms/{vm_id}/power"
-        if vm_password:
-            url += f"?vmPassword={vm_password}"
+        if self.host_pass:
+            url += f"?vmPassword={self.host_pass}"
         # VMRest API要求PUT请求体为纯字符串
-        return self.vmrest_api_power(url, state_str)
+        return self.powers_api(url, state_str)
 
-    # 注册虚拟机 ==========================================================
+    # 注册虚拟机 ##########################################################
+    # 注册虚拟机到VMware Workstation
+    # :param vmx_path: .vmx文件的完整路径
+    # :param vm_name: 虚拟机名称（可选，默认使用vmx文件名）
+    # #####################################################################
     def loader_vmx(self, vmx_path: str, vm_name: str = None) -> ZMessage:
-        """注册虚拟机到VMware Workstation
-        :param vmx_path: .vmx文件的完整路径
-        :param vm_name: 虚拟机名称（可选，默认使用vmx文件名）
-        """
         import os
         if vm_name is None:
             # 从路径中提取虚拟机名称（不含扩展名）
@@ -196,11 +192,11 @@ class VRestAPI:
             {"name": vm_name, "path": vmx_path},
             "POST")
 
-    # 删除虚拟机 ==========================================================
+    # 删除虚拟机 ##########################################################
+    # 从VMware Workstation中删除虚拟机
+    # :param vm_name: 虚拟机名称
+    # #####################################################################
     def delete_vmx(self, vm_name: str) -> ZMessage:
-        """从VMware Workstation中删除虚拟机
-        :param vm_name: 虚拟机名称
-        """
         vm_id = self.select_vid(vm_name)
         if not vm_id:
             return ZMessage(
@@ -208,13 +204,13 @@ class VRestAPI:
                 actions="delete_vmx",
                 message=f"未找到虚拟机: {vm_name}"
             )
-        return self.vmrest_api(f"/vms/{vm_id}", method="DELETE")
+        return self.vmrest_api(f"/vms/{vm_id}", m="DELETE")
 
-    # 获取虚拟机配置 ======================================================
-    def get_config(self, vm_name: str) -> ZMessage:
-        """获取虚拟机配置信息
-        :param vm_name: 虚拟机名称
-        """
+    # 获取虚拟机配置 ######################################################
+    # 获取虚拟机配置信息
+    # :param vm_name: 虚拟机名称
+    # #####################################################################
+    def config_get(self, vm_name: str) -> ZMessage:
         vm_id = self.select_vid(vm_name)
         if not vm_id:
             return ZMessage(
@@ -224,12 +220,12 @@ class VRestAPI:
             )
         return self.vmrest_api(f"/vms/{vm_id}")
 
-    # 更新虚拟机配置 ======================================================
-    def set_config(self, vm_name: str, config: dict) -> ZMessage:
-        """更新虚拟机配置
-        :param vm_name: 虚拟机名称
-        :param config: 配置字典
-        """
+    # 更新虚拟机配置 ######################################################
+    # 更新虚拟机配置
+    # :param vm_name: 虚拟机名称
+    # :param config: 配置字典
+    # #####################################################################
+    def config_set(self, vm_name: str, config: dict) -> ZMessage:
         vm_id = self.select_vid(vm_name)
         if not vm_id:
             return ZMessage(
@@ -239,12 +235,16 @@ class VRestAPI:
             )
         return self.vmrest_api(f"/vms/{vm_id}", config, "PUT")
 
-    # 获取网络列表 ========================================================
-    def get_vm_net(self) -> ZMessage:
-        """获取所有虚拟网络"""
+    # 获取网络列表 ########################################################
+    # 获取所有虚拟网络
+    # #####################################################################
+    def return_net(self) -> ZMessage:
         return self.vmrest_api("/vmnet")
 
-    # 创建虚拟机 ==========================================================
+    # 创建虚拟机 ##########################################################
+    # :param vm_conf: VMConfig对象
+    # :return: 虚拟机名称
+    # #####################################################################
     def create_vmx(self, vm_conf: VMConfig = None) -> str:
         vmx_config = {
             # 编码配置 ============================================
@@ -301,7 +301,7 @@ class VRestAPI:
             vmx_config[f"ethernet{nic_uuid}"] = {
                 "connectionType": "nat" if nic_data.nic_type == "nat" else "",
                 "addressType": "generated" if use_auto else "static",
-                "address": nic_data.mac_addr if use_auto else "",
+                "address": nic_data.mac_addr if not use_auto else "",
                 "virtualDev": "e1000e",
                 "present": "TRUE",
                 "txbw.limit": str(vm_conf.speed_u * 1024),
@@ -319,6 +319,7 @@ class VRestAPI:
         return VRestAPI.create_txt(vmx_config)
 
 
+# 测试代码 ################################################################
 if __name__ == "__main__":
     vm_client = VRestAPI()
     vm_config = VMConfig(

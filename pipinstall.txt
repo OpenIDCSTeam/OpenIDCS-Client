@@ -5,3 +5,5 @@ pywin32
 setuptools
 pythonnet
 requests
+flask
+requests

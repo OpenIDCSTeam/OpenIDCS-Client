@@ -33,6 +33,12 @@ class VMConfig:
             if hasattr(self, key):
                 setattr(self, key, value)
 
+    # 读取数据 ===============================
+    def __read__(self, data: dict):
+        for key, value in data.items():
+            if key in self.__dict__:
+                setattr(self, key, value)
+
     # 转换为字典 =============================
     def __dict__(self):
         return {
@@ -52,8 +58,8 @@ class VMConfig:
             "nat_num": self.nat_num,
             "web_num": self.web_num,
             # 网卡配置 =============
-            "nic_all": self.nic_all,
-            "hdd_all": self.hdd_all,
+            "nic_all": {k: v.__dict__() for k, v in self.nic_all.items()},
+            "hdd_all": {k: v.__dict__() for k, v in self.hdd_all.items()},
         }
 
     # 转换为字符串 ===========================

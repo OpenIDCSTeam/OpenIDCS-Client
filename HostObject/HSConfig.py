@@ -2,7 +2,7 @@ import json
 
 
 class HSConfig:
-    def __init__(self, **kwargs):
+    def __init__(self, config=None, /, **kwargs):
         self.server_type: str = ""  # 服务器类型
         self.server_addr: str = ""  # 服务器地址
         self.server_user: str = ""  # 服务器用户
@@ -16,13 +16,21 @@ class HSConfig:
         self.network_nat: str = ""  # NAT网络NIC
         self.network_pub: str = ""  # PUB网络NIC
         self.extend_data: dict = {}  # API可选项
-        # 加载传入的参数
+        # 加载传入的参数 =======================
+        if config is not None:
+            self.__read__(config)
         self.__load__(**kwargs)
 
     # 加载数据 =================================
     def __load__(self, **kwargs):
         for key, value in kwargs.items():
             if hasattr(self, key):
+                setattr(self, key, value)
+
+    # 读取数据 =================================
+    def __read__(self, data: dict):
+        for key, value in data.items():
+            if key in self.__dict__:
                 setattr(self, key, value)
 
     # 转换为字典 ===============================
