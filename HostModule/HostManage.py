@@ -1,0 +1,382 @@
+import json
+import secrets
+import traceback
+
+from HostServer.Template import BaseServer
+from MainObject.Config.HSConfig import HSConfig
+from MainObject.Server.HSEngine import HEConfig
+from MainObject.Config.VMConfig import VMConfig
+from MainObject.Config.NCConfig import NCConfig
+from MainObject.Public.ZMessage import ZMessage
+from HostModule.DataManage import HostDatabase
+
+
+class HostManage:
+    # 初始化 #####################################################################
+    def __init__(self):
+        self.engine: dict[str, BaseServer] = {}
+        self.logger: list[ZMessage] = []
+        self.bearer: str = ""
+        self.saving: str = "./DataSaving"
+        # 初始化数据库
+        self.db = HostDatabase(self.saving + "/hostmanage.db")
+        # 从数据库加载全局配置
+        self._load_global_config()
+
+    # 加载全局配置 ###############################################################
+    def _load_global_config(self):
+        """从数据库加载全局配置，如果Token为空则自动生成"""
+        global_config = self.db.get_global_config()
+        self.bearer = global_config.get("bearer", "")
+        self.saving = global_config.get("saving", "./DataSaving")
+
+        # 如果Token为空，自动生成一个新的Token
+        if not self.bearer:
+            self.bearer = secrets.token_hex(8)
+            # 保存到数据库
+            self.db.update_global_config(bearer=self.bearer)
+            print(f"[HostManage] 自动生成新Token: {self.bearer}")
+
+    # 字典化 #####################################################################
+    def __dict__(self):
+        return {
+            "engine": {
+                string: server.__dict__() for string, server in self.engine.items()
+            },
+            "logger": [
+                logger.__dict__() for logger in self.logger
+            ],
+            "bearer": self.bearer
+        }
+
+    # 设置/重置访问Token ##########################################################
+    def set_pass(self, bearer: str = "") -> str:
+        """
+        设置或重置访问Token
+        :param bearer: 指定的Token，为空则自动生成16位随机Token
+        :return: 设置后的Token
+        """
+        if bearer:
+            self.bearer = bearer
+        else:
+            # 生成16位随机Token（包含字母和数字）
+            self.bearer = secrets.token_hex(8)
+        # 保存到数据库
+        self.db.update_global_config(bearer=self.bearer)
+        return self.bearer
+
+    # 验证Token ##################################################################
+    def verify_token(self, token: str) -> bool:
+        """
+        验证访问Token是否正确
+        :param token: 待验证的Token
+        :return: 验证结果
+        """
+        return token and token == self.bearer
+
+    # 获取主机 ###################################################################
+    def get_host(self, hs_name: str) -> BaseServer | None:
+        if hs_name not in self.engine:
+            return None
+        return self.engine[hs_name]
+
+    # 添加主机 ###################################################################
+    def add_host(self, hs_name: str, hs_type: str, hs_conf: HSConfig) -> ZMessage:
+        if hs_name in self.engine:
+            return ZMessage(success=False, message="Host already add")
+        if hs_type not in HEConfig:
+            return ZMessage(success=False, message="Host unsupported")
+        self.engine[hs_name] = HEConfig[hs_type]["Imported"](hs_conf, db=self.db, hs_name=hs_name)
+        self.engine[hs_name].HSCreate()
+        self.engine[hs_name].HSLoader()
+        # 保存主机配置到数据库
+        self.db.save_host_config(hs_name, hs_conf)
+        return ZMessage(success=True, message="Host added successful")
+
+    # 删除主机 ###################################################################
+    def del_host(self, server):
+        if server in self.engine:
+            del self.engine[server]
+            # 从数据库删除主机配置
+            self.db.delete_host_config(server)
+            return True
+        return False
+
+    # 修改主机 ###################################################################
+    def set_host(self, hs_name: str, hs_conf: HSConfig) -> ZMessage:
+        if hs_name not in self.engine:
+            return ZMessage(success=False, message="Host not found")
+        self.engine[hs_name] = HEConfig[hs_conf.server_type]["Imported"](hs_conf, db=self.db, hs_name=hs_name)
+        self.engine[hs_name].HSUnload()
+        self.engine[hs_name].HSLoader()
+        # 保存主机配置到数据库
+        self.db.save_host_config(hs_name, hs_conf)
+        return ZMessage(success=True, message="Host updated successful")
+
+    # 修改主机 ###################################################################
+    def pwr_host(self, hs_name: str, hs_flag: bool) -> ZMessage:
+        if hs_name not in self.engine:
+            return ZMessage(success=False, message="Host not found")
+        if hs_flag:
+            self.engine[hs_name].HSLoader()
+        else:
+            self.engine[hs_name].HSUnload()
+        return ZMessage(success=True, message="Host enable=" + str(hs_flag))
+
+    # 加载信息 ###################################################################
+    def all_load(self):
+        """从数据库加载所有信息"""
+        try:
+            # 加载全局日志
+            self.logger = []
+            global_logs = self.db.get_logger()
+            for log_data in global_logs:
+                self.logger.append(ZMessage(**log_data) if isinstance(log_data, dict) else log_data)
+
+            # 加载所有主机配置
+            host_configs = self.db.get_all_host_configs()
+            for host_config in host_configs:
+                hs_name = host_config["hs_name"]
+
+                # 重建HSConfig对象
+                hs_conf_data = dict(host_config)
+                hs_conf_data["extend_data"] = json.loads(host_config["extend_data"]) if host_config[
+                    "extend_data"] else {}
+
+                # 移除数据库字段，只保留配置字段
+                for field in ["id", "hs_name", "created_at", "updated_at"]:
+                    hs_conf_data.pop(field, None)
+
+                hs_conf = HSConfig(**hs_conf_data)
+
+                # 获取主机完整数据
+                host_full_data = self.db.get_host_full_data(hs_name)
+
+                # 创建BaseServer实例
+                if hs_conf.server_type in HEConfig:
+                    server_class = HEConfig[hs_conf.server_type]["Imported"]
+                    self.engine[hs_name] = server_class(
+                        hs_conf,
+                        db=self.db,
+                        hs_name=hs_name,
+                        hs_status=host_full_data["hs_status"],
+                        hs_saving=host_full_data["hs_saving"],
+                        vm_saving=host_full_data["vm_saving"],
+                        vm_status=host_full_data["vm_status"],
+                        vm_tasker=host_full_data["vm_tasker"],
+                        save_logs=host_full_data["save_logs"],
+                    )
+                    self.engine[hs_name].HSLoader()
+        except Exception as e:
+            print(f"加载数据时出错: {e}")
+            traceback.print_exc()
+
+    # 保存信息 ###################################################################
+    def all_save(self) -> bool:
+        """保存所有信息到数据库"""
+        try:
+            success = True
+            # 保存全局日志
+            if self.logger:
+                self.db.save_logger(None, self.logger)
+
+            # 保存每个主机的数据
+            for hs_name, server in self.engine.items():
+                host_data = server.__dict__()
+                success &= self.db.save_host_full_data(hs_name, host_data)
+
+            return success
+        except Exception as e:
+            print(e)
+            traceback.print_exc()
+            return False
+
+    # 退出程序 ###################################################################
+    def all_exit(self):
+        for server in self.engine:
+            self.engine[server].HSUnload()
+
+    # 扫描虚拟机 #################################################################
+    def scan_vms(self, hs_name: str, prefix: str = "") -> ZMessage:
+        """
+        扫描主机上的虚拟机并保存到数据库
+        :param hs_name: 主机名称
+        :param prefix: 虚拟机名称前缀过滤（如果为空，则使用主机配置的filter_name）
+        :return: 操作结果
+        """
+        if hs_name not in self.engine:
+            return ZMessage(success=False, message=f"Host {hs_name} not found")
+
+        server = self.engine[hs_name]
+
+        try:
+            # 获取VMRestAPI实例（假设是Vmware类型）
+            if not hasattr(server, 'vmrest_api'):
+                return ZMessage(success=False, message="Host does not support VM scanning")
+
+            # 使用主机配置的filter_name作为前缀过滤（如果prefix参数为空）
+            filter_prefix = prefix if prefix else (server.hs_config.filter_name if server.hs_config else "")
+
+            # 获取所有虚拟机列表
+            vms_result = server.vmrest_api.return_vmx()
+            if not vms_result.success:
+                return ZMessage(success=False, message=f"Failed to get VM list: {vms_result.message}")
+
+            vms_list = vms_result.results if isinstance(vms_result.results, list) else []
+            scanned_count = 0  # 符合过滤条件的虚拟机数量
+            added_count = 0  # 新增的虚拟机数量
+
+            # 处理每个虚拟机
+            for vm_info in vms_list:
+                vm_path = vm_info.get("path", "")
+                vm_id = vm_info.get("id", "")
+
+                if not vm_path:
+                    continue
+
+                # 从路径中提取虚拟机名称
+                import os
+                vmx_name = os.path.splitext(os.path.basename(vm_path))[0]
+
+                # 前缀过滤（使用主机配置的filter_name或传入的prefix）
+                if filter_prefix and not vmx_name.startswith(filter_prefix):
+                    continue
+
+                # 符合过滤条件的虚拟机计数
+                scanned_count += 1
+
+                # 检查是否已存在
+                if vmx_name in server.vm_saving:
+                    continue
+
+                # 创建默认虚拟机配置
+                default_vm_config = VMConfig(
+                    vm_uuid=vmx_name,  # 使用虚拟机名称作为UUID
+                    os_name="",  # 空字符串
+                    cpu_num=0,  # 0表示未知
+                    mem_num=0,  # 0表示未知
+                    hdd_num=0,  # 0表示未知
+                    gpu_num=0,  # 0表示未知
+                    net_num=0,  # 0表示未知
+                    flu_num=0,  # 0表示未知
+                    nat_num=0,  # 0表示未知
+                    web_num=0,  # 0表示未知
+                    gpu_mem=0,  # 0表示未知
+                    speed_u=0,  # 0表示未知
+                    speed_d=0,  # 0表示未知
+                    nic_all={},  # 空字典
+                    hdd_all={},  # 空字典
+                )
+
+                # 添加到服务器的虚拟机配置中
+                server.vm_saving[vmx_name] = default_vm_config
+
+                # 初始化虚拟机状态为空列表
+                server.vm_status[vmx_name] = []
+
+                added_count += 1
+
+                # 记录日志
+                log_msg = ZMessage(
+                    success=True,
+                    actions="scan_vm",
+                    message=f"发现并添加虚拟机: {vmx_name}",
+                    results={"vm_name": vmx_name, "vm_id": vm_id, "vm_path": vm_path}
+                )
+                server.add_log(log_msg)
+
+            # 保存到数据库
+            if added_count > 0:
+                success = server.save_to_database()
+                if not success:
+                    return ZMessage(success=False, message="Failed to save scanned VMs to database")
+
+            return ZMessage(
+                success=True,
+                message=f"扫描完成。共扫描到{scanned_count}台虚拟机，新增{added_count}台虚拟机配置。",
+                results={
+                    "scanned": scanned_count,
+                    "added": added_count,
+                    "prefix_filter": filter_prefix
+                }
+            )
+
+        except Exception as e:
+            return ZMessage(success=False, message=f"扫描虚拟机时出错: {str(e)}")
+
+    # 定时任务 #################################################################
+    def exe_cron(self):
+        for server in self.engine:
+            print(f'[Cron] 执行{server}的定时任务')
+            self.engine[server].Crontabs()
+        print('[Cron] 执行定时任务完成')
+
+
+if __name__ == "__main__":
+    # 创建一个接口对象 ======================================================
+    hs_manage = HostManage()
+    # 添加一个主机 ==========================================================
+    # hs_manage.add_host(
+    #     "host1", "VMWareSetup",
+    #     HSConfig(
+    #         server_type="Win64VMW",
+    #         server_addr="localhost:8697",
+    #         server_user="root",
+    #         server_pass="VmD55!MkW@%Q",
+    #         filter_name="",
+    #         images_path=r"G:\OIDCS\Win64VMW\images",
+    #         system_path=r"G:\OIDCS\Win64VMW\system",
+    #         backup_path=r"G:\OIDCS\Win64VMW\backup",
+    #         extern_path=r"G:\OIDCS\Win64VMW\extern",
+    #         launch_path=r"C:\Program Files (x86)\VMware\VMware Workstation",
+    #         network_nat="nat",
+    #         network_pub="",
+    #         extend_data={
+    #
+    #         }
+    #     ))
+    # 加载所有主机 ==========================================================
+    hs_manage.all_load()
+    # 获取一个主机 ==========================================================
+    hs_server = hs_manage.get_host("host1")
+    # 创建虚拟机配置 ========================================================
+    vm_config = VMConfig(
+        vm_uuid="ecs_testvm",
+        os_name="windows10x64",
+        cpu_num=4,
+        mem_num=4096,
+        hdd_num=10240,
+        gpu_num=0,
+        net_num=100,
+        flu_num=100,
+        nat_num=100,
+        web_num=100,
+        gpu_mem=8192,
+        speed_u=100,
+        speed_d=100,
+        nic_all={
+            "ethernet0": NCConfig(
+                ip4_addr="192.168.4.101",
+                nic_type="nat",
+            )
+        }
+    )
+    # 创建虚拟机 ============================================================
+    # hs_result = hs_server.VMCreate(vm_config)
+    # print(hs_result)
+    # 启动虚拟机 ============================================================
+    # hs_result = hs_server.VMPowers(vm_config.vm_uuid, VMPowers.S_START)
+    # print(hs_result)
+    # 获取主机状态 ==========================================================
+    hs_status = hs_server.HSStatus()
+    print(hs_status)
+    # 获取虚拟机状态 ========================================================
+    vm_status = hs_server.VMStatus(vm_config.vm_uuid)
+    for name, nc_status in vm_status.items():
+        print(name, nc_status)
+    # 保存所有主机 ==========================================================
+    hs_manage.all_save()
+    # 退出程序 ==============================================================
+    hs_manage.all_exit()
+    # 调试 ==================================================================
+    # print(hs_server.__dict__())
