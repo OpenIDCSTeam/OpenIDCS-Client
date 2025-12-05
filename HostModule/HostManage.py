@@ -106,7 +106,23 @@ class HostManage:
     def set_host(self, hs_name: str, hs_conf: HSConfig) -> ZMessage:
         if hs_name not in self.engine:
             return ZMessage(success=False, message="Host not found")
+        
+        # 保存原有的虚拟机数据
+        old_server = self.engine[hs_name]
+        old_vm_saving = old_server.vm_saving
+        old_vm_status = old_server.vm_status
+        old_vm_tasker = old_server.vm_tasker
+        old_save_logs = old_server.hs_logger
+        
+        # 创建新的主机对象
         self.engine[hs_name] = HEConfig[hs_conf.server_type]["Imported"](hs_conf, db=self.db, hs_name=hs_name)
+        
+        # 恢复虚拟机数据
+        self.engine[hs_name].vm_saving = old_vm_saving
+        self.engine[hs_name].vm_status = old_vm_status
+        self.engine[hs_name].vm_tasker = old_vm_tasker
+        self.engine[hs_name].hs_logger = old_save_logs
+        
         self.engine[hs_name].HSUnload()
         self.engine[hs_name].HSLoader()
         # 保存主机配置到数据库
@@ -142,6 +158,11 @@ class HostManage:
                 hs_conf_data = dict(host_config)
                 hs_conf_data["extend_data"] = json.loads(host_config["extend_data"]) if host_config[
                     "extend_data"] else {}
+                # 解析新字段的JSON数据
+                hs_conf_data["system_maps"] = json.loads(host_config["system_maps"]) if host_config.get(
+                    "system_maps") else {}
+                hs_conf_data["public_addr"] = json.loads(host_config["public_addr"]) if host_config.get(
+                    "public_addr") else []
 
                 # 移除数据库字段，只保留配置字段
                 for field in ["id", "hs_name", "created_at", "updated_at"]:
@@ -156,16 +177,18 @@ class HostManage:
                 if hs_conf.server_type in HEConfig:
                     server_class = HEConfig[hs_conf.server_type]["Imported"]
                     self.engine[hs_name] = server_class(
-                        hs_conf,
+                    hs_conf,
                         db=self.db,
                         hs_name=hs_name,
                         hs_status=host_full_data["hs_status"],
-                        hs_saving=host_full_data["hs_saving"],
                         vm_saving=host_full_data["vm_saving"],
                         vm_status=host_full_data["vm_status"],
                         vm_tasker=host_full_data["vm_tasker"],
                         save_logs=host_full_data["save_logs"],
                     )
+                    # 确保状态数据正确加载到服务器实例
+                    self.engine[hs_name].hs_status = host_full_data["hs_status"]
+                    self.engine[hs_name].vm_status = host_full_data["vm_status"]
                     self.engine[hs_name].HSLoader()
         except Exception as e:
             print(f"加载数据时出错: {e}")
@@ -182,7 +205,11 @@ class HostManage:
 
             # 保存每个主机的数据
             for hs_name, server in self.engine.items():
+                # 确保状态数据是最新的
                 host_data = server.__dict__()
+                # 强制包含hs_status和vm_status数据
+                host_data["hs_status"] = server.hs_status
+                host_data["vm_status"] = server.vm_status
                 success &= self.db.save_host_full_data(hs_name, host_data)
 
             return success
@@ -287,7 +314,7 @@ class HostManage:
 
             # 保存到数据库
             if added_count > 0:
-                success = server.save_to_database()
+                success = server.data_set()
                 if not success:
                     return ZMessage(success=False, message="Failed to save scanned VMs to database")
 
@@ -310,6 +337,14 @@ class HostManage:
             print(f'[Cron] 执行{server}的定时任务')
             self.engine[server].Crontabs()
         print('[Cron] 执行定时任务完成')
+        
+        # 自动保存状态数据到数据库
+        print('[Cron] 开始保存状态数据到数据库')
+        save_success = self.all_save()
+        if save_success:
+            print('[Cron] 状态数据保存成功')
+        else:
+            print('[Cron] 状态数据保存失败')
 
 
 if __name__ == "__main__":

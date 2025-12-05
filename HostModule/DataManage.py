@@ -40,7 +40,20 @@ class HostDatabase:
             
             conn = self.get_connection()
             try:
-                conn.executescript(sql_script)
+                # 分割SQL脚本，逐条执行以更好地处理ALTER TABLE错误
+                sql_statements = [stmt.strip() for stmt in sql_script.split(';') if stmt.strip()]
+                
+                for sql in sql_statements:
+                    try:
+                        conn.execute(sql)
+                    except sqlite3.OperationalError as e:
+                        # 忽略ALTER TABLE的重复字段错误
+                        if "duplicate column name" in str(e).lower():
+                            print(f"字段已存在，跳过: {e}")
+                            continue
+                        else:
+                            raise e
+                
                 conn.commit()
             except Exception as e:
                 print(f"数据库初始化错误: {e}")
@@ -102,8 +115,10 @@ class HostDatabase:
             INSERT OR REPLACE INTO hs_config 
             (hs_name, server_type, server_addr, server_user, server_pass, 
              filter_name, images_path, system_path, backup_path, extern_path,
-             launch_path, network_nat, network_pub, extend_data, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+             launch_path, network_nat, network_pub, i_kuai_addr, i_kuai_user, 
+             i_kuai_pass, ports_start, ports_close, remote_port, system_maps, 
+             public_addr, extend_data, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """
             params = (
                 hs_name,
@@ -119,6 +134,14 @@ class HostDatabase:
                 hs_config.launch_path,
                 hs_config.network_nat,
                 hs_config.network_pub,
+                hs_config.i_kuai_addr,
+                hs_config.i_kuai_user,
+                hs_config.i_kuai_pass,
+                hs_config.ports_start,
+                hs_config.ports_close,
+                hs_config.remote_port,
+                json.dumps(hs_config.system_maps) if hs_config.system_maps else "{}",
+                json.dumps(hs_config.public_addr) if hs_config.public_addr else "[]",
                 json.dumps(hs_config.extend_data) if hs_config.extend_data else "{}"
             )
             conn.execute(sql, params)
@@ -204,39 +227,9 @@ class HostDatabase:
     
     # ==================== 主机存储配置操作 ====================
     
-    def save_hs_saving(self, hs_name: str, hs_saving: Dict[str, Any]) -> bool:
-        """保存主机存储配置"""
-        conn = self.get_connection()
-        try:
-            # 清除旧配置
-            conn.execute("DELETE FROM hs_saving WHERE hs_name = ?", (hs_name,))
-            
-            # 插入新配置
-            sql = "INSERT INTO hs_saving (hs_name, saving_key, saving_value) VALUES (?, ?, ?)"
-            for key, value in hs_saving.items():
-                value_data = json.dumps(value.__dict__() if hasattr(value, '__dict__') else value)
-                conn.execute(sql, (hs_name, key, value_data))
-            
-            conn.commit()
-            return True
-        except Exception as e:
-            print(f"保存主机存储配置错误: {e}")
-            conn.rollback()
-            return False
-        finally:
-            conn.close()
+
     
-    def get_hs_saving(self, hs_name: str) -> Dict[str, Any]:
-        """获取主机存储配置"""
-        conn = self.get_connection()
-        try:
-            cursor = conn.execute("SELECT saving_key, saving_value FROM hs_saving WHERE hs_name = ?", (hs_name,))
-            result = {}
-            for row in cursor.fetchall():
-                result[row["saving_key"]] = json.loads(row["saving_value"])
-            return result
-        finally:
-            conn.close()
+
     
     # ==================== 虚拟机存储配置操作 ====================
     
@@ -409,9 +402,7 @@ class HostDatabase:
             if 'hs_status' in host_data:
                 success &= self.save_hs_status(hs_name, host_data['hs_status'])
             
-            # 保存主机存储配置
-            if 'hs_saving' in host_data:
-                success &= self.save_hs_saving(hs_name, host_data['hs_saving'])
+
             
             # 保存虚拟机存储配置
             if 'vm_saving' in host_data:
@@ -445,7 +436,6 @@ class HostDatabase:
         return {
             "hs_config": self.get_host_config(hs_name),
             "hs_status": self.get_hs_status(hs_name),
-            "hs_saving": self.get_hs_saving(hs_name),
             "vm_saving": self.get_vm_saving(hs_name),
             "vm_status": self.get_vm_status(hs_name),
             "vm_tasker": self.get_vm_tasker(hs_name),

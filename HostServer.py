@@ -212,15 +212,52 @@ def get_host(hs_name):
     if not server:
         return api_response(404, '主机不存在')
 
+    # 检查是否需要详细信息（通过查询参数控制）
+    include_status = request.args.get('status', 'false').lower() == 'true'
+    
+    # 构建基础响应数据（快速获取）
     host_data = {
         'name': hs_name,
         'type': server.hs_config.server_type if server.hs_config else '',
         'addr': server.hs_config.server_addr if server.hs_config else '',
         'config': server.hs_config.__dict__() if server.hs_config else {},
-        'status': server.HSStatus().__dict__() if server.HSStatus() else {},
         'vm_count': len(server.vm_saving),
-        'vm_list': list(server.vm_saving.keys())
+        'vm_list': list(server.vm_saving.keys()),
+        'last_updated': getattr(server, '_status_cache_time', 0)
     }
+
+    # 只有明确要求时才获取状态信息（避免每次调用都执行耗时的系统检查）
+    if include_status:
+        try:
+            cached_status = getattr(server, '_status_cache', None)
+            cache_time = getattr(server, '_status_cache_time', 0)
+            
+            # 检查缓存是否有效（30秒内的数据认为是新鲜的）
+            import time
+            current_time = int(time.time())
+            if cached_status and (current_time - cache_time) < 30:
+                host_data['status'] = cached_status
+                host_data['status_source'] = 'cached'
+            else:
+                # 获取新状态并缓存
+                status_obj = server.HSStatus()
+                if status_obj:
+                    host_data['status'] = status_obj.__dict__()
+                    host_data['status_source'] = 'fresh'
+                    # 缓存状态数据
+                    server._status_cache = status_obj.__dict__()
+                    server._status_cache_time = current_time
+                else:
+                    host_data['status'] = {}
+                    host_data['status_source'] = 'unavailable'
+        except Exception as e:
+            host_data['status'] = {}
+            host_data['status_source'] = 'error'
+            host_data['status_error'] = str(e)
+    else:
+        host_data['status'] = None
+        host_data['status_note'] = 'Use ?status=true to get detailed host status'
+
     return api_response(200, 'success', host_data)
 
 
@@ -300,8 +337,48 @@ def get_host_status(hs_name):
     if not server:
         return api_response(404, '主机不存在')
 
-    status = server.HSStatus()
-    return api_response(200, 'success', status.__dict__() if status else {})
+    # 检查是否强制刷新缓存
+    force_refresh = request.args.get('refresh', 'false').lower() == 'true'
+    
+    import time
+    current_time = int(time.time())
+    cache_time = getattr(server, '_status_cache_time', 0)
+    cached_status = getattr(server, '_status_cache', None)
+    
+    # 检查缓存是否有效（60秒内的数据认为是新鲜的）
+    if not force_refresh and cached_status and (current_time - cache_time) < 60:
+        return api_response(200, 'success', {
+            'status': cached_status,
+            'source': 'cached',
+            'cached_at': cache_time,
+            'age_seconds': current_time - cache_time
+        })
+    
+    # 获取新状态
+    try:
+        status = server.HSStatus()
+        if status:
+            status_data = status.__dict__()
+            # 更新缓存
+            server._status_cache = status_data
+            server._status_cache_time = current_time
+            
+            return api_response(200, 'success', {
+                'status': status_data,
+                'source': 'fresh' if force_refresh else 'auto_refreshed',
+                'cached_at': current_time,
+                'cache_duration': 60
+            })
+        else:
+            return api_response(500, 'failed', {
+                'message': '无法获取主机状态',
+                'source': 'error'
+            })
+    except Exception as e:
+        return api_response(500, 'failed', {
+            'message': f'获取主机状态时出错: {str(e)}',
+            'source': 'error'
+        })
 
 
 # ============================================================================
@@ -316,7 +393,7 @@ def get_vms(hs_name):
         return api_response(404, '主机不存在')
     
     # 从数据库重新加载数据
-    server.reload_from_database()
+    server.data_get()
 
     def serialize_obj(obj):
         """将对象序列化为可JSON化的格式"""
@@ -558,7 +635,7 @@ def scan_vms(hs_name):
     server = hs_manage.get_host(hs_name)
     if server:
         # 扫描前先从数据库重新加载数据
-        server.reload_from_database()
+        server.data_get()
     
     data = request.get_json() or {}
     prefix = data.get('prefix', '')  # 前缀过滤，为空则使用主机配置的filter_name

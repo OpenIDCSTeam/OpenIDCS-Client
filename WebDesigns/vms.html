@@ -407,14 +407,14 @@
         const nicHtml = `
             <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg" id="nic_${nicCounter}">
                 <input type="text" name="nic_name_${nicCounter}" placeholder="网卡名称 如: ethernet0"
-                    class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
+                    class="inline-block px-2 py-1 text-sm border border-gray-300 rounded" style="width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;">
                 <select name="nic_type_${nicCounter}" class="px-2 py-1 text-sm border border-gray-300 rounded">
                     <option value="nat">NAT</option>
                     <option value="bridged">桥接</option>
                     <option value="host-only">仅主机</option>
                 </select>
                 <input type="text" name="nic_ip_${nicCounter}" placeholder="IPv4地址"
-                    class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
+                    class="inline-block px-2 py-1 text-sm border border-gray-300 rounded" style="width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;">
                 <input type="text" name="nic_ip6_${nicCounter}" placeholder="IPv6地址"
                     class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
                 <button type="button" onclick="removeNicConfig(${nicCounter})" class="p-1 text-red-500 hover:bg-red-50 rounded">
@@ -466,14 +466,14 @@
                 const nicHtml = `
                     <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg" id="nic_${nicCounter}">
                         <input type="text" name="nic_name_${nicCounter}" value="${nicName}" placeholder="网卡名称"
-                            class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
+                            class="inline-block px-2 py-1 text-sm border border-gray-300 rounded" style="width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;">
                         <select name="nic_type_${nicCounter}" class="px-2 py-1 text-sm border border-gray-300 rounded">
                             <option value="nat" ${nicConfig.nic_type === 'nat' ? 'selected' : ''}>NAT</option>
                             <option value="bridged" ${nicConfig.nic_type === 'bridged' ? 'selected' : ''}>桥接</option>
                             <option value="host-only" ${nicConfig.nic_type === 'host-only' ? 'selected' : ''}>仅主机</option>
                         </select>
                         <input type="text" name="nic_ip_${nicCounter}" value="${nicConfig.ip4_addr || ''}" placeholder="IPv4地址"
-                            class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
+                            class="inline-block px-2 py-1 text-sm border border-gray-300 rounded" style="width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;">
                         <input type="text" name="nic_ip6_${nicCounter}" value="${nicConfig.ip6_addr || ''}" placeholder="IPv6地址"
                             class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
                         <button type="button" onclick="removeNicConfig(${nicCounter})" class="p-1 text-red-500 hover:bg-red-50 rounded">

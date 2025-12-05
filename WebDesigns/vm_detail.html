@@ -1077,21 +1077,21 @@
                 nicHtml += `
                     <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
                         <div class="flex items-center justify-between mb-2">
-                            <span class="font-medium text-gray-800">${nicName}</span>
+                            <span class="font-medium text-gray-200 inline-block text-left" style="width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nicName}</span>
                             <span class="px-2 py-0.5 text-xs font-medium text-gray-600 bg-gray-200 rounded">${nicConfig.nic_type || 'nat'}</span>
                         </div>
-                        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                             <div class="flex items-center gap-2">
-                                <span class="text-gray-500">IPv4:</span>
-                                <span class="font-mono text-gray-700">${nicConfig.ip4_addr || '-'}</span>
+                                <span class="text-gray-500 whitespace-nowrap">IPv4:</span>
+                                <span class="font-mono text-gray-700 inline-block text-left" style="width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nicConfig.ip4_addr || '-'}</span>
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="text-gray-500">IPv6:</span>
+                                <span class="text-gray-500 whitespace-nowrap">IPv6:</span>
                                 <span class="font-mono text-gray-700 break-all">${nicConfig.ip6_addr || '-'}</span>
                             </div>
-                            <div class="flex items-center gap-2 ml-auto">
-                                <span class="text-gray-500">MAC:</span>
-                                <span class="font-mono text-gray-700">${nicConfig.mac_addr || '-'}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-gray-500 whitespace-nowrap">MAC:</span>
+                                <span class="font-mono text-gray-700 break-all">${nicConfig.mac_addr || '-'}</span>
                             </div>
                         </div>
                     </div>
@@ -1371,14 +1371,14 @@
                 editNicCounter++;
                 const nicHtml = `
                     <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg" id="edit_nic_${editNicCounter}">
-                        <input type="text" name="edit_nic_name_${editNicCounter}" value="${nicName}" placeholder="网卡名称"
+                        <input style="width: 100px" type="text" name="edit_nic_name_${editNicCounter}" value="${nicName}" placeholder="网卡名称"
                             class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
                         <select name="edit_nic_type_${editNicCounter}" class="px-2 py-1 text-sm border border-gray-300 rounded">
                             <option value="nat" ${nicConfig.nic_type === 'nat' ? 'selected' : ''}>NAT</option>
                             <option value="bridged" ${nicConfig.nic_type === 'bridged' ? 'selected' : ''}>桥接</option>
                             <option value="host-only" ${nicConfig.nic_type === 'host-only' ? 'selected' : ''}>仅主机</option>
                         </select>
-                <input type="text" name="edit_nic_ip_${editNicCounter}" value="${nicConfig.ip4_addr || ''}" placeholder="IPv4地址"
+                <input type="text" style="width: 100px" name="edit_nic_ip_${editNicCounter}" value="${nicConfig.ip4_addr || ''}" placeholder="IPv4地址"
                     class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
                 <input type="text" name="edit_nic_ip6_${editNicCounter}" value="${nicConfig.ip6_addr || ''}" placeholder="IPv6地址"
                     class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
@@ -1404,14 +1404,14 @@
         const container = document.getElementById('editNicConfigs');
         const nicHtml = `
             <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg" id="edit_nic_${editNicCounter}">
-                <input type="text" name="edit_nic_name_${editNicCounter}" placeholder="网卡名称 如: ethernet0"
+                <input type="text" style="width: 100px" name="edit_nic_name_${editNicCounter}" placeholder="网卡名称 如: ethernet0"
                     class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
                 <select name="edit_nic_type_${editNicCounter}" class="px-2 py-1 text-sm border border-gray-300 rounded">
                     <option value="nat">NAT</option>
                     <option value="bridged">桥接</option>
                     <option value="host-only">仅主机</option>
                 </select>
-                <input type="text" name="edit_nic_ip_${editNicCounter}" placeholder="IPv4地址"
+                <input type="text" style="width: 100px" name="edit_nic_ip_${editNicCounter}" placeholder="IPv4地址"
                     class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
                 <input type="text" name="edit_nic_ip6_${editNicCounter}" placeholder="IPv6地址"
                     class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">

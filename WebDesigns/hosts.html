@@ -156,6 +156,80 @@
                 </div>
             </div>
             
+            <div class="border-t border-gray-200 pt-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:router-network" data-width="18"></span>
+                    爱快OS配置
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">爱快OS地址</label>
+                        <input type="text" name="i_kuai_addr" id="iKuaiAddr"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="例如: http://192.168.1.1">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">爱快OS用户名</label>
+                        <input type="text" name="i_kuai_user" id="iKuaiUser"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="爱快OS管理员用户名">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">爱快OS密码</label>
+                        <input type="password" name="i_kuai_pass" id="iKuaiPass"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="爱快OS管理员密码">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-200 pt-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:network-outline" data-width="18"></span>
+                    端口配置
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">TCP端口起始</label>
+                        <input type="number" name="ports_start" id="portsStart"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="例如: 10000" min="0" max="65535">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">TCP端口结束</label>
+                        <input type="number" name="ports_close" id="portsClose"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="例如: 20000" min="0" max="65535">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">VNC服务端口</label>
+                        <input type="number" name="remote_port" id="remotePort"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="例如: 5900" min="0" max="65535">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-200 pt-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:file-table-outline" data-width="18"></span>
+                    系统映射配置
+                </h4>
+                <div class="mb-3">
+                    <p class="text-sm text-gray-600">配置系统名称与镜像文件的映射关系</p>
+                </div>
+                <div id="systemMapsContainer" class="space-y-2">
+                    <!-- 系统映射行将动态添加到这里 -->
+                </div>
+                <div class="mt-3">
+                    <button type="button" onclick="addSystemMapRow()" 
+                        class="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 flex items-center gap-1">
+                        <span class="iconify" data-icon="mdi:plus" data-width="16"></span>
+                        添加系统映射
+                    </button>
+                </div>
+            </div>
+            
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">API扩展选项 (JSON格式)</label>
                 <textarea name="extend_data" id="extendData" rows="2"
@@ -238,6 +312,96 @@
         } catch (e) {
             showToast('扩展数据JSON格式错误', 'error');
             return {};
+        }
+    }
+    
+    // 系统映射相关函数 =======================================
+    
+    // 添加系统映射行
+    function addSystemMapRow(systemName = '', systemFile = '', minSize = '') {
+        const container = document.getElementById('systemMapsContainer');
+        const rowId = Date.now() + Math.random();
+        const rowHtml = `
+            <div class="system-map-row bg-gray-50 p-3 rounded-lg" data-row-id="${rowId}">
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                    <div class="md:col-span-5">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">外部显示系统名称</label>
+                        <input type="text" 
+                            class="system-name w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
+                            placeholder="例如: Windows 10" 
+                            value="${systemName}">
+                    </div>
+                    <div class="md:col-span-4">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">镜像文件(带后缀)</label>
+                        <input type="text" 
+                            class="system-file w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
+                            placeholder="例如: windows10.qcow2" 
+                            value="${systemFile}">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">最低大小(GB)</label>
+                        <input type="number" 
+                            class="min-size w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
+                            placeholder="例如: 20" 
+                            min="0" 
+                            step="0.1"
+                            value="${minSize}">
+                    </div>
+                    <div class="md:col-span-1">
+                        <button type="button" onclick="removeSystemMapRow('${rowId}')" 
+                            class="w-full px-2 py-1.5 bg-red-500 text-white text-sm rounded hover:bg-red-600 flex items-center justify-center gap-1 whitespace-nowrap">
+                            <span class="iconify" data-icon="mdi:delete" data-width="14"></span>
+                            <span class="hidden sm:inline">删除</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', rowHtml);
+    }
+    
+    // 删除系统映射行
+    function removeSystemMapRow(rowId) {
+        const row = document.querySelector(`[data-row-id="${rowId}"]`);
+        if (row) {
+            row.remove();
+        }
+    }
+    
+    // 获取系统映射数据
+    function getSystemMapsData() {
+        const maps = {};
+        const rows = document.querySelectorAll('.system-map-row');
+        rows.forEach(row => {
+            const systemName = row.querySelector('.system-name').value.trim();
+            const systemFile = row.querySelector('.system-file').value.trim();
+            const minSize = row.querySelector('.min-size').value.trim();
+            
+            if (systemName && systemFile) {
+                maps[systemName] = [systemFile, minSize || '0'];
+            }
+        });
+        return maps;
+    }
+    
+    // 加载系统映射数据
+    function loadSystemMapsData(systemMaps) {
+        const container = document.getElementById('systemMapsContainer');
+        container.innerHTML = ''; // 清空现有内容
+        
+        if (systemMaps && typeof systemMaps === 'object') {
+            for (const [systemName, config] of Object.entries(systemMaps)) {
+                if (Array.isArray(config) && config.length >= 2) {
+                    addSystemMapRow(systemName, config[0], config[1]);
+                } else if (Array.isArray(config) && config.length >= 1) {
+                    addSystemMapRow(systemName, config[0], '');
+                }
+            }
+        }
+        
+        // 如果没有任何映射，添加一个空行作为默认
+        if (Object.keys(systemMaps || {}).length === 0) {
+            addSystemMapRow();
         }
     }
     
@@ -339,6 +503,42 @@
                             </span>
                             <span class="font-medium text-gray-800">${renderPublicAddr(host.config?.public_addr)}</span>
                         </div>
+                        ${host.config?.i_kuai_addr ? `
+                        <div class="flex items-center justify-between text-gray-600">
+                            <span class="flex items-center gap-1">
+                                <span class="iconify" data-icon="mdi:router-network" data-width="16"></span>
+                                爱快OS
+                            </span>
+                            <span class="font-medium text-gray-800">${host.config.i_kuai_addr}</span>
+                        </div>
+                        ` : ''}
+                        ${host.config?.ports_start && host.config?.ports_close ? `
+                        <div class="flex items-center justify-between text-gray-600">
+                            <span class="flex items-center gap-1">
+                                <span class="iconify" data-icon="mdi:network-outline" data-width="16"></span>
+                                端口范围
+                            </span>
+                            <span class="font-medium text-gray-800">${host.config.ports_start}-${host.config.ports_close}</span>
+                        </div>
+                        ` : ''}
+                        ${host.config?.remote_port ? `
+                        <div class="flex items-center justify-between text-gray-600">
+                            <span class="flex items-center gap-1">
+                                <span class="iconify" data-icon="mdi:remote-desktop" data-width="16"></span>
+                                VNC端口
+                            </span>
+                            <span class="font-medium text-gray-800">${host.config.remote_port}</span>
+                        </div>
+                        ` : ''}
+                        ${host.config?.system_maps && Object.keys(host.config.system_maps).length > 0 ? `
+                        <div class="flex items-center justify-between text-gray-600">
+                            <span class="flex items-center gap-1">
+                                <span class="iconify" data-icon="mdi:file-table-outline" data-width="16"></span>
+                                系统映射
+                            </span>
+                            <span class="font-medium text-gray-800">${Object.keys(host.config.system_maps).length} 个</span>
+                        </div>
+                        ` : ''}
                         <div class="flex items-center justify-between text-gray-600">
                             <span class="flex items-center gap-1">
                                 <span class="iconify" data-icon="mdi:cube-outline" data-width="16"></span>
@@ -386,6 +586,8 @@
         document.getElementById('editMode').value = 'add';
         document.getElementById('hostForm').reset();
         document.getElementById('hostName').disabled = false;
+        // 初始化系统映射为空
+        loadSystemMapsData({});
         document.getElementById('hostModal').showModal();
     }
     
@@ -417,9 +619,15 @@
             document.getElementById('launchPath').value = config.launch_path || '';
             document.getElementById('networkNat').value = config.network_nat || '';
             document.getElementById('networkPub').value = config.network_pub || '';
+            document.getElementById('iKuaiAddr').value = config.i_kuai_addr || '';
+            document.getElementById('iKuaiUser').value = config.i_kuai_user || '';
+            document.getElementById('iKuaiPass').value = config.i_kuai_pass || '';
+            document.getElementById('portsStart').value = config.ports_start || '';
+            document.getElementById('portsClose').value = config.ports_close || '';
+            document.getElementById('remotePort').value = config.remote_port || '';
+            loadSystemMapsData(config.system_maps || {});
             document.getElementById('publicAddr').value = (config.public_addr || []).join(', ');
             document.getElementById('extendData').value = config.extend_data ? JSON.stringify(config.extend_data, null, 2) : '';
-            
             document.getElementById('hostModal').showModal();
         }
     }
@@ -527,6 +735,13 @@
             launch_path: document.getElementById('launchPath').value,
             network_nat: document.getElementById('networkNat').value,
             network_pub: document.getElementById('networkPub').value,
+            i_kuai_addr: document.getElementById('iKuaiAddr').value,
+            i_kuai_user: document.getElementById('iKuaiUser').value,
+            i_kuai_pass: document.getElementById('iKuaiPass').value,
+            ports_start: parseInt(document.getElementById('portsStart').value) || 0,
+            ports_close: parseInt(document.getElementById('portsClose').value) || 0,
+            remote_port: parseInt(document.getElementById('remotePort').value) || 0,
+            system_maps: getSystemMapsData(),
             public_addr: document.getElementById('publicAddr').value.split(',').map(s => s.trim()).filter(s => s),
             extend_data: parseExtendData(document.getElementById('extendData').value)
         };

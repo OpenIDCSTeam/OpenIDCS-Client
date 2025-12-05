@@ -11,6 +11,7 @@ from MainObject.Config.NCConfig import NCConfig
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
 from HostServer.VMRestHost.VRestAPI import VRestAPI
+from NetsManage import NetsManage
 
 
 class HostServer(BaseServer):
@@ -70,13 +71,13 @@ class HostServer(BaseServer):
     # 初始宿主机 ###########################################################
     def HSCreate(self) -> ZMessage:
         hs_result = ZMessage(success=True, action="HSCreate")
-        self.save_logs.append(hs_result)
+        self.hs_logger.append(hs_result)
         return hs_result
 
     # 还原宿主机 ###########################################################
     def HSDelete(self) -> ZMessage:
         hs_result = ZMessage(success=True, action="HSDelete")
-        self.save_logs.append(hs_result)
+        self.hs_logger.append(hs_result)
         return hs_result
 
     # 读取宿主机 ###########################################################
@@ -99,7 +100,7 @@ class HostServer(BaseServer):
             startupinfo=startupinfo,
             creationflags=subprocess.CREATE_NO_WINDOW)
         hs_result = ZMessage(success=True, action="HSLoader", message="OK")
-        self.save_logs.append(hs_result)
+        self.hs_logger.append(hs_result)
         return hs_result
 
     # 卸载宿主机 ###########################################################
@@ -120,14 +121,16 @@ class HostServer(BaseServer):
             action="HSUnload",
             message="VM Rest Server stopped",
         )
-        self.save_logs.append(hs_result)
+        self.hs_logger.append(hs_result)
         return hs_result
 
     # 宿主机操作 ###########################################################
     def HSAction(self, action: str = "") -> ZMessage:
         hs_result = ZMessage(success=True, action="HSAction")
-        self.save_logs.append(hs_result)
+        self.hs_logger.append(hs_result)
         return hs_result
+
+
 
     # 虚拟机列出 ###########################################################
     def VMStatus(self, select: str = "") -> dict[str, list[HWStatus]]:
@@ -156,7 +159,7 @@ class HostServer(BaseServer):
         self.vmrest_api.loader_vmx(vm_file_name + ".vmx")
         # 返回结果 =========================================================
         hs_result = ZMessage(success=True, action="VMCreate", message="OK")
-        self.save_logs.append(hs_result)
+        self.hs_logger.append(hs_result)
         return hs_result
 
     # 安装虚拟机 ###########################################################
@@ -177,7 +180,7 @@ class HostServer(BaseServer):
         hs_result = ZMessage(
             success=True, action="VMUpdate",
             message=f"虚拟机 {vm_uuid} 配置已更新")
-        self.save_logs.append(hs_result)
+        self.hs_logger.append(hs_result)
         # 保存到数据库
         if self.db and self.hs_name:
             self.db.save_vm_saving(self.hs_name, self.vm_saving)
@@ -188,13 +191,13 @@ class HostServer(BaseServer):
         hs_result = self.vmrest_api.delete_vmx(select)
         if hs_result.success:
             shutil.rmtree(os.path.join(self.hs_config.system_path, select))
-        self.save_logs.append(hs_result)
+        self.hs_logger.append(hs_result)
         return hs_result
 
     # 虚拟机电源 ###########################################################
     def VMPowers(self, select: str, power: VMPowers) -> ZMessage:
         hs_result = self.vmrest_api.powers_set(select, power)
-        self.save_logs.append(hs_result)
+        self.hs_logger.append(hs_result)
         return hs_result
 
     # 虚拟机电源 ###########################################################

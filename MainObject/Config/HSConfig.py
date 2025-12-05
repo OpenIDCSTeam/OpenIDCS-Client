@@ -15,6 +15,13 @@ class HSConfig:
         self.launch_path: str = ""  # 二进制路径
         self.network_nat: str = ""  # NAT网络NIC
         self.network_pub: str = ""  # PUB网络NIC
+        self.i_kuai_addr: str = ""  # 爱快OS地址
+        self.i_kuai_user: str = ""  # 爱快OS用户
+        self.i_kuai_pass: str = ""  # 爱快OS密码
+        self.ports_start: int = 0  # TCP端口起始
+        self.ports_close: int = 0  # TCP端口结束
+        self.remote_port: int = 0  # VNC服务端口
+        self.system_maps: dict[str, list] = {}
         self.public_addr: list = []  # 公共IPV46
         self.extend_data: dict = {}  # API可选项
         # 加载传入的参数 =======================
@@ -49,6 +56,13 @@ class HSConfig:
             "launch_path": self.launch_path,
             "network_nat": self.network_nat,
             "network_pub": self.network_pub,
+            "i_kuai_addr": self.i_kuai_addr,
+            "i_kuai_user": self.i_kuai_user,
+            "i_kuai_pass": self.i_kuai_pass,
+            "ports_start": self.ports_start,
+            "ports_close": self.ports_close,
+            "remote_port": self.remote_port,
+            "system_maps": self.system_maps,
             "public_addr": self.public_addr,
             "extend_data": self.extend_data,
         }
